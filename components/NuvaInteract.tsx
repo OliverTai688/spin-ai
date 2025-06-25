@@ -33,18 +33,41 @@ export default function NuvaInteract() {
     setReadyToSpeak(true);
   };
 
+  const [, setShowIntroCard] = useState(true);
+
+  const suggestionPrompts = [
+    {
+      label: "模擬：台商資產傳承個案對話",
+      content: `我想進行一段 SPIN 模擬對話。
+
+我是業務員，開始對話模擬。`
+    },
+    {
+      label: "學習：我想了解 SPIN 框架怎麼用",
+      content: `我是一名新業務員，想要學習如何使用 SPIN 提問技巧來進行銷售。
+
+請你依據 SPIN 四個階段（S/P/I/N）幫我解釋每個階段的目標與提問範例，並給我一些使用建議。`
+    }
+  ];
+
+
+  useEffect(() => {
+    if (messages.length > 0) {
+      setShowIntroCard(false);
+    }
+  }, [messages]);
+
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 每次新 AI 回答時，安排說話
   useEffect(() => {
     if (
       readyToSpeak &&
       messages.length > prevMessagesLength.current &&
       !isStreaming
     ) {
-      // ✅ 等 streaming 完成！
       const lastMsg = messages[messages.length - 1];
       if (lastMsg.role === "assistant" && lastMsg.content.trim()) {
         // speak(lastMsg.content);
@@ -53,7 +76,6 @@ export default function NuvaInteract() {
     }
   }, [messages, readyToSpeak, isStreaming]);
 
-  // 確保 voices 載入完成才說話
   useEffect(() => {
     if (typeof window !== "undefined") {
       const synth = window.speechSynthesis;
@@ -68,136 +90,114 @@ export default function NuvaInteract() {
     }
   }, [pendingSpeech]);
 
-  // const trySpeak = (text: string) => {
-  //   const synth = window.speechSynthesis;
-  //   if (synth.getVoices().length > 0) {
-  //     speak(text);
-  //   } else {
-  //     setPendingSpeech(text);
-  //   }
-  // };
-
-  // const speak = (text: string) => {
-  //   const synth = window.speechSynthesis;
-
-  //   console.log("🔵 準備播放文字:", text);
-
-  //   if (synth.speaking) {
-  //     console.log("🟡 目前正在播放，先取消");
-  //     synth.cancel();
-  //   }
-
-  //   const voices = synth.getVoices();
-  //   console.log("🟣 系統語音列表:", voices);
-
-  //   const zhVoice =
-  //     voices.find((voice) => voice.lang === "zh-TW") ||
-  //     voices.find((voice) => voice.lang.startsWith("zh")) ||
-  //     null;
-
-  //   if (zhVoice) {
-  //     console.log("✅ 選到中文語音:", zhVoice.name, zhVoice.lang);
-  //   } else {
-  //     console.log("⚠️ 沒有找到中文語音，使用預設");
-  //   }
-
-  //   const utterance = new SpeechSynthesisUtterance(text);
-  //   utterance.lang = "zh-TW";
-  //   if (zhVoice) {
-  //     utterance.voice = zhVoice;
-  //   }
-  //   utterance.rate = 1.0;
-  //   utterance.pitch = 1.2;
-  //   utterance.volume = 1.0;
-
-  //   // 🔥 加上語音事件監聽
-  //   utterance.onstart = () => {
-  //     console.log("🟢 語音播放開始");
-  //   };
-  //   utterance.onend = () => {
-  //     console.log("✅ 語音播放結束");
-  //   };
-  //   utterance.onerror = (e) => {
-  //     console.error("❌ 語音播放錯誤:", e.error);
-  //   };
-
-  //   console.log("🛫 呼叫 synth.speak() 開始播放");
-  //   synth.speak(utterance);
-  // };
-
   return (
     <div
-      className="p-6 max-w-2xl mx-auto min-h-screen flex flex-col space-y-6 bg-gradient-to-r from-blue-50 via-gray-100 to-white rounded-lg shadow-xl"
-      onClick={handleClickAnywhere}
-    >
-      <h2 className="text-3xl font-semibold text-gray-800 mb-6">
-        ReflectwiseAI 助理
-      </h2>
+    className="p-6 max-w-6xl mx-auto flex flex-col md:flex-row gap-6
+               bg-white/70 backdrop-blur-md border border-blue-100 
+               rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300"
+    onClick={handleClickAnywhere}
+  >
+      {/* 左側輸入區塊 */}
+<div className="flex-1 flex flex-col space-y-4">
+  <h2 className="text-3xl font-bold text-blue-800 text-center">超級業務提問系統</h2>
+  <p className="text-center text-blue-500 text-sm">
+    引導式銷售對話．語音互動支援．幫助你精準成交
+  </p>
 
-      {/* 聊天紀錄區塊 */}
-      <ScrollArea className="flex-1 mb-4 pr-2 rounded-lg bg-white shadow-sm">
-        <div className="space-y-3 px-4 py-3">
-          {messages.map((msg, idx) => (
-            <Card
-              key={idx}
-              className={`max-w-full ${
-                msg.role === "user"
-                  ? "ml-auto bg-blue-100"
-                  : "mr-auto bg-gray-100"
-              } rounded-lg p-3 shadow-sm`}
-            >
-              <CardContent className="text-sm text-gray-800">
-                <span className="block font-medium mb-1 text-gray-600">
-                  {msg.role === "user" ? "你" : "Nui"}
-                </span>
-                {msg.role === "assistant" &&
-                /\*\*Step \d\*\*[:：]/.test(msg.content) ? (
-                  msg.content
-                    .split(/\*\*Step (\d)\*\*[:：]/)
-                    .filter(Boolean)
-                    .map((chunk, index, arr) => {
-                      if (index % 2 === 0) return null;
-                      const stepNumber = arr[index - 1];
-                      return (
-                        <div key={index} className="mb-2">
-                          <p className="font-semibold text-yellow-700">
-                            Step {stepNumber}
-                          </p>
-                          <p className="whitespace-pre-wrap">{chunk.trim()}</p>
-                        </div>
-                      );
-                    })
-                ) : (
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-          <div ref={bottomRef} />
-        </div>
-      </ScrollArea>
-
-      {/* 輸入區塊 */}
-      <Textarea
-        placeholder="輸入或錄音..."
-        value={input}
-        onChange={handleInputChange}
-        rows={3}
-        className="mb-4 p-4 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"
-      />
-
-      {/* 按鈕區塊 */}
-      <div className="flex gap-2">
+  <Card className="bg-blue-50/60 border border-blue-100 shadow-sm rounded-xl p-4 space-y-3">
+    <p className="text-blue-800 text-sm leading-relaxed">
+      👋 你好，我是 <span className="font-bold">超級提問教練</span>。
+      <br />
+      請描述你想練習的銷售情境，或點選下方的建議主題，我將用{" "}
+      <strong>SPIN 模型</strong> 引導你完成一次高效的對話練習。
+    </p>
+    <div className="flex flex-wrap gap-2">
+      {suggestionPrompts.map((opt, idx) => (
         <Button
-          onClick={handleSubmit}
-          disabled={loading || !input.trim()}
-          className="flex-1 py-3 bg-blue-600 text-white hover:bg-blue-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400"
+          key={idx}
+          variant="outline"
+          className="rounded-full border-blue-300 text-blue-700 hover:bg-blue-100"
+          onClick={() => {
+            sendInteract(opt.content);
+            setReadyToSpeak(true);
+          }}
         >
-          {loading ? "請稍候..." : "發送"}
+          {opt.label}
         </Button>
+      ))}
+    </div>
+  </Card>
 
-        <SpeechButton onText={setInput} disabled={loading} />
-      </div>
+  <Textarea
+    placeholder="此處可輸入..."
+    value={input}
+    onChange={handleInputChange}
+    rows={3}
+    className="p-4 border border-gray-300 rounded-lg shadow-sm 
+               focus:ring-2 focus:ring-blue-500 focus:outline-none"
+  />
+
+  <div className="flex gap-2">
+    <Button
+      onClick={handleSubmit}
+      disabled={loading || !input.trim()}
+      className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-blue-500 text-white 
+                 hover:from-blue-700 hover:to-blue-600 rounded-xl 
+                 shadow-md hover:shadow-lg focus:outline-none 
+                 focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 disabled:bg-gray-300"
+    >
+      {loading ? "請稍候..." : "送出"}
+    </Button>
+    <SpeechButton onText={setInput} disabled={loading} />
+  </div>
+</div>
+
+{/* 右側對話區塊 */}
+<div className="flex-1 max-h-[70vh] overflow-y-auto bg-white border shadow-inner rounded-xl p-4">
+  <ScrollArea className="h-full pr-2">
+    <div className="space-y-3">
+      {messages.map((msg, idx) => (
+        <Card
+          key={idx}
+          className={`max-w-full ${msg.role === "user"
+            ? "ml-auto bg-gradient-to-r from-blue-500 to-blue-400 text-white"
+            : "mr-auto bg-gray-100 border text-gray-800"
+            } rounded-xl p-3 shadow`}
+        >
+          <CardContent className="text-sm whitespace-pre-wrap px-0">
+            <span className="block text-xs font-semibold mb-1 opacity-80">
+              {msg.role === "user" ? "你" : "超級教練"}
+            </span>
+            {msg.role === "assistant" &&
+              /\*\*Step \d\*\*[:：]/.test(msg.content) ? (
+              msg.content
+                .split(/\*\*Step (\d)\*\*[:：]/)
+                .filter(Boolean)
+                .map((chunk, index, arr) => {
+                  if (index % 2 === 0) return null;
+                  const stepNumber = arr[index - 1];
+                  return (
+                    <div key={index} className="mb-2">
+                      <p className="font-semibold text-blue-700 text-base">
+                        Step {stepNumber}
+                      </p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {chunk.trim()}
+                      </p>
+                    </div>
+                  );
+                })
+            ) : (
+              <p>{msg.content}</p>
+            )}
+          </CardContent>
+        </Card>
+      ))}
+      <div ref={bottomRef} />
+    </div>
+  </ScrollArea>
+</div>
+
     </div>
   );
 }
